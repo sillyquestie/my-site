@@ -78,6 +78,20 @@
             animation: bokehDrift 20s ease-in-out infinite;
         }
 
+        /* Cloudflare Check Animation */
+        .cf-check-path {
+            stroke-dasharray: 24;
+            stroke-dashoffset: 24;
+            animation: cfCheckDraw 0.4s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
+        }
+        @keyframes cfCheckDraw {
+            to { stroke-dashoffset: 0; }
+        }
+        @keyframes cfCardExit {
+            0% { opacity: 1; transform: scale(1) translateY(0); }
+            100% { opacity: 0; transform: scale(0.95) translateY(10px); filter: blur(8px); }
+        }
+
         /* Loader Ring */
         .loader-ring {
             display: inline-block;
@@ -138,6 +152,81 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+
+        /* Cursor Glow */
+        #cursor-glow {
+            position: fixed;
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, rgba(139,92,246,0.04) 35%, transparent 70%);
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s ease;
+            opacity: 0;
+            mix-blend-mode: screen;
+        }
+        #cursor-glow.active {
+            opacity: 1;
+        }
+
+        /* Easter Egg */
+        #easter-egg-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        #easter-egg-overlay.active {
+            opacity: 1;
+        }
+        @keyframes riftGlitch {
+            0% { transform: translate(0); filter: hue-rotate(0deg); }
+            10% { transform: translate(-3px, 3px); filter: hue-rotate(90deg); }
+            20% { transform: translate(3px, -3px); filter: hue-rotate(180deg); }
+            30% { transform: translate(-2px, -2px); filter: hue-rotate(270deg); }
+            40% { transform: translate(2px, 2px); filter: hue-rotate(360deg); }
+            50% { transform: translate(0); filter: hue-rotate(0deg); }
+            100% { transform: translate(0); filter: hue-rotate(0deg); }
+        }
+        @keyframes riftPulseRing {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+        }
+        @keyframes riftTextReveal {
+            0% { letter-spacing: 0.5em; opacity: 0; filter: blur(20px); }
+            50% { letter-spacing: 0.3em; opacity: 1; filter: blur(0); }
+            80% { letter-spacing: 0.2em; opacity: 1; }
+            100% { letter-spacing: 0.5em; opacity: 0; filter: blur(10px); }
+        }
+        .rift-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #8b5cf6;
+            border-radius: 50%;
+            box-shadow: 0 0 12px #8b5cf6, 0 0 24px #8b5cf6;
+        }
+
+        /* Quote styles */
+        @keyframes quoteFadeIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); filter: blur(4px); }
+            to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes quoteFadeOut {
+            from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+            to { opacity: 0; transform: translateY(-8px) scale(0.98); filter: blur(4px); }
+        }
+
+        /* Device info pulse */
+        @keyframes devicePing {
+            0% { box-shadow: 0 0 0 0 rgba(139,92,246,0.3); }
+            70% { box-shadow: 0 0 0 8px rgba(139,92,246,0); }
+            100% { box-shadow: 0 0 0 0 rgba(139,92,246,0); }
+        }
     </style>
 </head>
 <body class="antialiased min-h-screen relative selection:bg-purple-500 selection:text-white">
@@ -152,6 +241,21 @@
         <div class="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-fuchsia-900/20 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
     </div>
 
+    <!-- Cursor Glow -->
+    <div id="cursor-glow"></div>
+
+    <!-- Easter Egg Overlay -->
+    <div id="easter-egg-overlay">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+        <div id="ee-content" class="absolute inset-0 flex items-center justify-center">
+            <div id="ee-text" class="text-5xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-600" style="font-family: 'Space Grotesk', sans-serif;"></div>
+        </div>
+        <div id="ee-ring-1" class="absolute top-1/2 left-1/2 w-20 h-20 rounded-full border-2 border-purple-500/60 opacity-0"></div>
+        <div id="ee-ring-2" class="absolute top-1/2 left-1/2 w-20 h-20 rounded-full border border-purple-400/40 opacity-0" style="animation-delay: 0.2s;"></div>
+        <div id="ee-ring-3" class="absolute top-1/2 left-1/2 w-20 h-20 rounded-full border border-purple-300/20 opacity-0" style="animation-delay: 0.4s;"></div>
+        <canvas id="ee-particles" class="absolute inset-0 w-full h-full"></canvas>
+    </div>
+
     <!-- Hidden YouTube Player for Background Music -->
     <div id="yt-player" class="hidden absolute -top-96"></div>
 
@@ -161,54 +265,87 @@
         <div class="text-purple-400/60 font-mono text-xs tracking-[0.3em]">LOADING</div>
     </div>
 
-    <!-- Click To Enter Overlay (Aesthetic) -->
-    <div id="click-overlay" class="fixed inset-0 z-[999] flex flex-col items-center justify-center cursor-pointer transition-all duration-[1.5s] hidden overflow-hidden" style="background: #030305;">
+    <!-- Click To Enter Overlay (Cloudflare Security Style) -->
+    <div id="click-overlay" class="fixed inset-0 z-[999] flex flex-col items-center justify-center transition-all duration-[1s] hidden overflow-hidden" style="background: #0a0a0a;">
         
-        <!-- Soft Bokeh Background -->
-        <div class="bokeh-orb w-[500px] h-[500px] bg-purple-900/25 top-[10%] left-[-10%]" style="animation-delay: 0s; animation-duration: 22s;"></div>
-        <div class="bokeh-orb w-[400px] h-[400px] bg-indigo-900/20 bottom-[5%] right-[-5%]" style="animation-delay: -5s; animation-duration: 18s;"></div>
-        <div class="bokeh-orb w-[300px] h-[300px] bg-fuchsia-900/15 top-[40%] right-[20%]" style="animation-delay: -10s; animation-duration: 25s;"></div>
-        <div class="bokeh-orb w-[200px] h-[200px] bg-violet-800/20 bottom-[30%] left-[15%]" style="animation-delay: -7s; animation-duration: 20s;"></div>
+        <!-- Subtle grid pattern background -->
+        <div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 40px 40px;"></div>
+        
+        <!-- Soft ambient glow -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-purple-900/10 blur-[120px] pointer-events-none"></div>
 
-        <!-- Subtle Grain Overlay -->
-        <div class="absolute inset-0 opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg viewBox=%270 0 256 256%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27noise%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23noise)%27/%3E%3C/svg%3E');"></div>
-
-        <!-- Soft Vignette -->
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_30%,_rgba(0,0,0,0.6)_100%)]"></div>
-
-        <!-- Center Content -->
-        <div class="relative z-10 flex flex-col items-center justify-center" style="animation: gentleFloat 6s ease-in-out infinite;">
+        <!-- Cloudflare Verification Card -->
+        <div id="cf-card" class="relative z-10 w-[380px] max-w-[90vw]" style="animation: softFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;">
             
-            <!-- Soft Glow Behind Title -->
-            <div class="absolute w-[300px] h-[300px] rounded-full bg-purple-500/5 blur-3xl" style="animation: breathe 4s ease-in-out infinite;"></div>
-
-            <!-- Title -->
-            <h1 class="splash-title text-7xl md:text-9xl font-light tracking-[0.3em] text-white/90 mb-2 relative" style="font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.35em;">
-                RIFT
-            </h1>
-
-            <!-- Thin Divider Line -->
-            <div class="splash-line h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-
-            <!-- Enter Button -->
-            <div class="relative mt-14 splash-button">
-                <!-- Soft pulsing ring -->
-                <div class="absolute -inset-4 rounded-full border border-white/5" style="animation: subtlePulse 3s ease-in-out infinite;"></div>
+            <!-- Card -->
+            <div class="bg-[#111111] border border-white/[0.08] rounded-xl overflow-hidden shadow-2xl shadow-black/50">
                 
-                <button id="enter-btn" class="relative z-20 px-10 py-3.5 rounded-full bg-white/[0.03] backdrop-blur-sm border border-white/10 text-white/60 tracking-[0.25em] text-xs font-light hover:bg-white/[0.08] hover:text-white/90 hover:border-white/25 transition-all duration-700 uppercase hover:tracking-[0.35em] hover:shadow-[0_0_60px_rgba(139,92,246,0.12)]">
-                    enter
-                </button>
-            </div>
+                <!-- Header Bar -->
+                <div class="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+                        </svg>
+                        <span class="text-white/70 text-sm font-medium">Security Check</span>
+                    </div>
+                    <span class="text-white/20 text-xs font-mono">rift.baby</span>
+                </div>
 
-            <!-- Audio Hint -->
-            <div class="splash-hint mt-8 flex items-center gap-2 text-white/15 text-[11px] tracking-[0.2em] uppercase font-light">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-                audio will play
+                <!-- Body -->
+                <div class="p-6">
+                    <h2 class="text-white/90 text-base font-semibold mb-1">Verify you are human</h2>
+                    <p class="text-white/30 text-xs mb-6 leading-relaxed">Complete the security verification to access this site.</p>
+
+                    <!-- Checkbox Area -->
+                    <div id="cf-checkbox-area" class="relative">
+                        <button id="enter-btn" class="w-full flex items-center gap-4 p-4 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-purple-500/30 hover:bg-white/[0.05] transition-all duration-300 cursor-pointer group text-left">
+                            <!-- Checkbox -->
+                            <div id="cf-checkbox" class="w-6 h-6 rounded-md border-2 border-white/20 flex items-center justify-center shrink-0 group-hover:border-purple-400/50 transition-all duration-300 relative overflow-hidden">
+                                <!-- Empty state (default) -->
+                                <div id="cf-check-empty" class="w-full h-full"></div>
+                                <!-- Spinner state -->
+                                <div id="cf-check-spinner" class="hidden absolute inset-0 flex items-center justify-center">
+                                    <div class="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin"></div>
+                                </div>
+                                <!-- Success state -->
+                                <div id="cf-check-success" class="hidden absolute inset-0 flex items-center justify-center bg-purple-500 rounded-md">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" class="cf-check-path"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <!-- Label -->
+                            <div class="flex-1">
+                                <span id="cf-label" class="text-white/60 text-sm transition-all duration-300">I am human</span>
+                            </div>
+                            <!-- Audio hint -->
+                            <div class="flex items-center gap-1.5 text-white/15 text-[10px]">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Success Message (hidden initially) -->
+                    <div id="cf-success-msg" class="hidden mt-4 flex items-center gap-2 text-green-400/80 text-xs">
+                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                        <span>Verification complete</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between">
+                    <div class="flex items-center gap-1.5 text-white/15 text-[10px]">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/></svg>
+                        <span>Performance & security by</span>
+                        <span class="text-white/25 font-medium">Rift</span>
+                    </div>
+                    <div class="flex gap-3 text-white/15 text-[10px]">
+                        <span>Privacy</span>
+                        <span>Terms</span>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- Minimal Bottom Accent -->
-        <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/10 to-transparent"></div>
     </div>
 
     <!-- Main Content -->
@@ -321,32 +458,51 @@
         <!-- 4. R6 Siege (Manual) -->
         <section class="reveal">
             <a href="https://r6.tracker.network/r6siege/profile/xbl/Konk%20Juice/overview" target="_blank" class="block group relative">
-                <div class="absolute -inset-0.5 bg-gradient-to-r from-orange-600 to-amber-600 rounded-2xl blur opacity-0 group-hover:opacity-50 transition duration-500"></div>
-                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-gray-900 to-black border border-white/10 group-hover:border-orange-500/30 transition-all duration-300">
-                    <div class="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-orange-500/20 transition-colors duration-500"></div>
+                <div class="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-violet-600 rounded-2xl blur opacity-0 group-hover:opacity-50 transition duration-500"></div>
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-gray-900 to-black border border-white/10 group-hover:border-purple-500/30 transition-all duration-300">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-purple-500/20 transition-colors duration-500"></div>
                     
                     <div class="p-6 relative z-10">
                         <div class="flex items-center justify-between mb-6">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-orange-500/20 rounded flex items-center justify-center text-orange-500 group-hover:bg-orange-500/30 transition-colors">
-                                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/></svg>
+                                <div class="w-10 h-10 bg-purple-500/20 rounded flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
+                                    <!-- Purple Diamond Icon -->
+                                    <svg class="w-7 h-7" viewBox="0 0 40 40" fill="none">
+                                        <defs>
+                                            <linearGradient id="diamondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="#8b5cf6"/>
+                                                <stop offset="50%" stop-color="#a78bfa"/>
+                                                <stop offset="100%" stop-color="#7c3aed"/>
+                                            </linearGradient>
+                                        </defs>
+                                        <!-- Diamond shape -->
+                                        <polygon points="20,2 38,15 20,38 2,15" fill="url(#diamondGrad)" opacity="0.9"/>
+                                        <!-- Facet lines -->
+                                        <line x1="2" y1="15" x2="38" y2="15" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
+                                        <line x1="20" y1="2" x2="12" y2="15" stroke="white" stroke-opacity="0.15" stroke-width="0.6"/>
+                                        <line x1="20" y1="2" x2="28" y2="15" stroke="white" stroke-opacity="0.15" stroke-width="0.6"/>
+                                        <line x1="12" y1="15" x2="20" y2="38" stroke="white" stroke-opacity="0.1" stroke-width="0.6"/>
+                                        <line x1="28" y1="15" x2="20" y2="38" stroke="white" stroke-opacity="0.1" stroke-width="0.6"/>
+                                        <!-- Top highlight -->
+                                        <polygon points="20,2 28,15 12,15" fill="white" opacity="0.1"/>
+                                    </svg>
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-white group-hover:text-orange-300 transition-colors">Rainbow Six Siege</h3>
-                                    <p class="text-xs text-orange-400 font-mono">OPERATOR STATS</p>
+                                    <h3 class="font-bold text-white group-hover:text-purple-300 transition-colors">Rainbow Six Siege</h3>
+                                    <p class="text-xs text-purple-400 font-mono">OPERATOR STATS</p>
                                 </div>
                             </div>
-                            <div class="flex items-center text-orange-400 text-sm font-medium opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                            <div class="flex items-center text-purple-400 text-sm font-medium opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
                                 View Full Stats <span class="ml-2">→</span>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white/5 p-4 rounded-xl border border-white/5 group-hover:border-orange-500/20 transition-colors">
+                            <div class="bg-white/5 p-4 rounded-xl border border-white/5 group-hover:border-purple-500/20 transition-colors">
                                 <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Level</div>
                                 <div class="text-2xl font-mono font-bold text-white" id="siege-level"></div>
                             </div>
-                            <div class="bg-white/5 p-4 rounded-xl border border-white/5 group-hover:border-orange-500/20 transition-colors">
+                            <div class="bg-white/5 p-4 rounded-xl border border-white/5 group-hover:border-purple-500/20 transition-colors">
                                 <div class="text-gray-400 text-xs uppercase tracking-wider mb-1">Peak Rank</div>
                                 <div class="text-xl font-mono font-bold text-white flex items-center gap-2">
                                     <span id="siege-rank-icon">💎</span>
@@ -465,6 +621,94 @@
                     <!-- Audio waveform visualization — decorative -->
                     <div class="mt-6 relative z-10 overflow-hidden h-8 opacity-0 transition-opacity duration-500" id="spotify-waveform">
                         <canvas id="spotify-wave-canvas" class="w-full h-full opacity-20"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Device Detection & Time Zone -->
+        <section class="reveal">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Device Detection -->
+                <div class="bg-[#0F0F0F]/80 backdrop-blur-sm border border-white/[0.06] rounded-2xl p-6 relative overflow-hidden group hover:border-purple-500/20 transition-all duration-500">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-purple-500/10 transition-colors duration-500"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-purple-400/60 uppercase tracking-[0.2em] font-medium block">Viewing From</span>
+                                <h4 class="text-white/80 text-sm font-medium" id="device-name">Detecting...</h4>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-lg text-[11px] text-white/40">
+                                <span id="device-icon" class="text-sm">💻</span>
+                                <span id="device-type">Desktop</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-lg text-[11px] text-white/40">
+                                <span class="text-sm">🌐</span>
+                                <span id="device-browser">Browser</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-lg text-[11px] text-white/40">
+                                <span class="text-sm">⚙️</span>
+                                <span id="device-os">OS</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time & Location -->
+                <div class="bg-[#0F0F0F]/80 backdrop-blur-sm border border-white/[0.06] rounded-2xl p-6 relative overflow-hidden group hover:border-purple-500/20 transition-all duration-500">
+                    <div class="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl -ml-10 -mb-10 group-hover:bg-indigo-500/10 transition-colors duration-500"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-indigo-400/60 uppercase tracking-[0.2em] font-medium block">Local Time</span>
+                                <h4 class="text-white/80 text-sm font-medium font-mono tabular-nums" id="live-time">00:00:00</h4>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-lg text-[11px] text-white/40">
+                                <span class="text-sm">📍</span>
+                                <span id="timezone-name">UTC</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-lg text-[11px] text-white/40">
+                                <span class="text-sm">📅</span>
+                                <span id="current-date">Jan 1, 2026</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-lg text-[11px] text-white/40" id="time-period-badge">
+                                <div class="w-1.5 h-1.5 rounded-full" id="time-period-dot"></div>
+                                <span id="time-period">Daytime</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Random Quote Generator -->
+        <section class="reveal">
+            <div class="flex justify-center">
+                <div class="relative group cursor-pointer" id="quote-container" onclick="cycleQuote()">
+                    <div class="bg-[#0F0F0F]/60 backdrop-blur-sm border border-white/[0.05] rounded-2xl px-8 py-5 text-center hover:border-purple-500/15 transition-all duration-500 relative overflow-hidden max-w-md">
+                        <div class="absolute inset-0 bg-gradient-to-r from-purple-500/[0.02] to-indigo-500/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div class="relative z-10">
+                            <div class="text-white/10 text-3xl mb-2 leading-none">"</div>
+                            <p id="quote-text" class="text-white/50 text-sm italic leading-relaxed" style="animation: quoteFadeIn 0.6s ease both;">One more match.</p>
+                            <div class="mt-3 flex items-center justify-center gap-2">
+                                <div class="flex gap-1" id="quote-dots"></div>
+                                <span class="text-[9px] text-white/15 uppercase tracking-[0.2em] ml-2">click to shuffle</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -645,32 +889,63 @@
             }, 300);
         });
 
-        // Click to Enter Logic
+        // Click to Enter Logic (Cloudflare Verification Flow)
         let entered = false;
         enterBtn.addEventListener('click', () => {
             if(!dataLoaded || entered) return;
             entered = true;
 
-            // Play Music (YouTube) — random song from playlist
-            if (ytPlayer && ytPlayer.playVideo) {
-                ytPlayer.unMute();
-                ytPlayer.setVolume(30);
-                ytPlayer.playVideo();
-            }
+            const checkbox = document.getElementById('cf-checkbox');
+            const checkEmpty = document.getElementById('cf-check-empty');
+            const checkSpinner = document.getElementById('cf-check-spinner');
+            const checkSuccess = document.getElementById('cf-check-success');
+            const cfLabel = document.getElementById('cf-label');
+            const cfSuccessMsg = document.getElementById('cf-success-msg');
+            const cfCard = document.getElementById('cf-card');
 
-            // Show now playing indicator
-            updateNowPlaying();
-            const npWidget = document.getElementById('now-playing-widget');
-            if (npWidget) npWidget.classList.remove('hidden');
+            // Phase 1: Show spinner
+            checkEmpty.classList.add('hidden');
+            checkSpinner.classList.remove('hidden');
+            checkbox.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+            cfLabel.textContent = 'Verifying...';
+            cfLabel.style.color = 'rgba(255,255,255,0.4)';
 
-            // Animate Overlay Out — soft aesthetic fade
-            clickOverlay.style.opacity = "0";
-            clickOverlay.style.filter = "blur(12px) brightness(1.5)";
-            
+            // Phase 2: Show success checkmark after 1.2s
             setTimeout(() => {
-                clickOverlay.style.display = "none";
-                mainContent.style.opacity = "1";
-            }, 800);
+                checkSpinner.classList.add('hidden');
+                checkSuccess.classList.remove('hidden');
+                checkbox.style.borderColor = 'transparent';
+                cfLabel.textContent = 'Verified';
+                cfLabel.style.color = 'rgba(74, 222, 128, 0.8)';
+                cfSuccessMsg.classList.remove('hidden');
+
+                // Play Music
+                if (ytPlayer && ytPlayer.playVideo) {
+                    ytPlayer.unMute();
+                    ytPlayer.setVolume(30);
+                    ytPlayer.playVideo();
+                }
+
+                // Show now playing indicator
+                updateNowPlaying();
+                const npWidget = document.getElementById('now-playing-widget');
+                if (npWidget) npWidget.classList.remove('hidden');
+            }, 1200);
+
+            // Phase 3: Fade out card and overlay after 2.2s
+            setTimeout(() => {
+                cfCard.style.animation = 'cfCardExit 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                
+                setTimeout(() => {
+                    clickOverlay.style.opacity = '0';
+                    clickOverlay.style.transition = 'opacity 0.5s ease';
+                    
+                    setTimeout(() => {
+                        clickOverlay.style.display = 'none';
+                        mainContent.style.opacity = '1';
+                    }, 500);
+                }, 400);
+            }, 2200);
         });
 
 
@@ -1023,6 +1298,311 @@
 
         // Fire counter on load
         incrementViewCounter();
+
+        /* -------------------------------------------------------------------------- */
+        /*                          DEVICE DETECTION                                  */
+        /* -------------------------------------------------------------------------- */
+        function detectDevice() {
+            const ua = navigator.userAgent;
+            let deviceType = 'Desktop';
+            let deviceIcon = '💻';
+            let deviceName = 'Desktop';
+            let browser = 'Browser';
+            let os = 'Unknown';
+
+            // Detect device type
+            if (/iPad|Tablet|PlayBook/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/i.test(ua))) {
+                deviceType = 'Tablet'; deviceIcon = '📱'; deviceName = 'Tablet';
+            } else if (/Mobile|Android|iPhone|iPod|webOS|BlackBerry|Opera Mini|IEMobile/i.test(ua)) {
+                deviceType = 'Mobile'; deviceIcon = '📱'; deviceName = 'Mobile';
+            }
+
+            // Detect specific device
+            if (/iPhone/i.test(ua)) deviceName = 'iPhone';
+            else if (/iPad/i.test(ua)) deviceName = 'iPad';
+            else if (/Samsung/i.test(ua)) deviceName = 'Samsung';
+            else if (/Pixel/i.test(ua)) deviceName = 'Pixel';
+            else if (/Huawei/i.test(ua)) deviceName = 'Huawei';
+            else if (/OnePlus/i.test(ua)) deviceName = 'OnePlus';
+            else if (/Android/i.test(ua) && deviceType === 'Mobile') deviceName = 'Android';
+
+            // Detect browser
+            if (/Edg/i.test(ua)) browser = 'Edge';
+            else if (/OPR|Opera/i.test(ua)) browser = 'Opera';
+            else if (/Brave/i.test(ua)) browser = 'Brave';
+            else if (/Chrome/i.test(ua)) browser = 'Chrome';
+            else if (/Firefox/i.test(ua)) browser = 'Firefox';
+            else if (/Safari/i.test(ua)) browser = 'Safari';
+
+            // Detect OS
+            if (/Windows NT 10/i.test(ua)) os = 'Windows 10/11';
+            else if (/Windows/i.test(ua)) os = 'Windows';
+            else if (/Mac OS X/i.test(ua)) os = 'macOS';
+            else if (/Android (\d+)/i.test(ua)) os = 'Android ' + ua.match(/Android (\d+)/i)[1];
+            else if (/iPhone OS (\d+)/i.test(ua)) os = 'iOS ' + ua.match(/iPhone OS (\d+)/i)[1];
+            else if (/Linux/i.test(ua)) os = 'Linux';
+            else if (/CrOS/i.test(ua)) os = 'ChromeOS';
+
+            document.getElementById('device-name').textContent = deviceName;
+            document.getElementById('device-icon').textContent = deviceIcon;
+            document.getElementById('device-type').textContent = deviceType;
+            document.getElementById('device-browser').textContent = browser;
+            document.getElementById('device-os').textContent = os;
+        }
+        detectDevice();
+
+        /* -------------------------------------------------------------------------- */
+        /*                            LIVE CLOCK & TIME                               */
+        /* -------------------------------------------------------------------------- */
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+            const hour = now.getHours();
+
+            document.getElementById('live-time').textContent = timeStr;
+            document.getElementById('current-date').textContent = dateStr;
+            document.getElementById('timezone-name').textContent = tz.replace('_', ' ');
+
+            const dot = document.getElementById('time-period-dot');
+            const period = document.getElementById('time-period');
+            if (hour >= 6 && hour < 12) {
+                period.textContent = 'Morning'; dot.style.backgroundColor = '#fbbf24';
+            } else if (hour >= 12 && hour < 17) {
+                period.textContent = 'Afternoon'; dot.style.backgroundColor = '#f97316';
+            } else if (hour >= 17 && hour < 21) {
+                period.textContent = 'Evening'; dot.style.backgroundColor = '#8b5cf6';
+            } else {
+                period.textContent = 'Night'; dot.style.backgroundColor = '#6366f1';
+            }
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        /* -------------------------------------------------------------------------- */
+        /*                            CURSOR GLOW                                     */
+        /* -------------------------------------------------------------------------- */
+        const cursorGlow = document.getElementById('cursor-glow');
+        let mouseX = 0, mouseY = 0, glowX = 0, glowY = 0;
+
+        // Only on non-touch (desktop)
+        if (!('ontouchstart' in window)) {
+            document.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                cursorGlow.classList.add('active');
+            });
+
+            document.addEventListener('mouseleave', () => {
+                cursorGlow.classList.remove('active');
+            });
+
+            function animateGlow() {
+                glowX += (mouseX - glowX) * 0.12;
+                glowY += (mouseY - glowY) * 0.12;
+                cursorGlow.style.left = glowX + 'px';
+                cursorGlow.style.top = glowY + 'px';
+                requestAnimationFrame(animateGlow);
+            }
+            animateGlow();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /*                         PARALLAX BACKGROUND                                */
+        /* -------------------------------------------------------------------------- */
+        let scrollY = 0;
+        let parallaxActive = true;
+
+        window.addEventListener('scroll', () => {
+            scrollY = window.pageYOffset;
+        });
+
+        // Modify particle update to include parallax offset
+        const origUpdate = Particle.prototype.update;
+        Particle.prototype.update = function() {
+            origUpdate.call(this);
+            // Parallax: offset based on scroll, different for each particle
+            this._parallaxY = scrollY * (this.size * 0.02 + 0.01);
+        };
+        const origDraw = Particle.prototype.draw;
+        Particle.prototype.draw = function() {
+            const offsetY = this._parallaxY || 0;
+            ctx.fillStyle = `rgba(139, 92, 246, ${this.alpha})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y - (offsetY % height), this.size, 0, Math.PI * 2);
+            ctx.fill();
+        };
+
+        /* -------------------------------------------------------------------------- */
+        /*                       RANDOM QUOTE GENERATOR                               */
+        /* -------------------------------------------------------------------------- */
+        const quotes = [
+            "One more match.",
+            "Just queue again.",
+            "1v1 Me.",
+            "Trust the process.",
+            "You'll only beat me not locked in.",
+            "No im not xim",
+            "It's not over till i say it's over.",
+            "Built different.",
+            "Sleep is for the weak.",
+            "Peak performance.",
+            "Warm up is over.",
+            "They don't know me son.",
+            "I don't lose. I learn.",
+            "Main character energy.",
+            "It's giving carry.",
+            "Lag. Definitely lag."
+        ];
+        let currentQuoteIndex = Math.floor(Math.random() * quotes.length);
+
+        function renderQuoteDots() {
+            const dotContainer = document.getElementById('quote-dots');
+            dotContainer.innerHTML = '';
+            quotes.forEach((_, i) => {
+                const d = document.createElement('div');
+                d.className = `w-1 h-1 rounded-full transition-all duration-300 ${i === currentQuoteIndex ? 'bg-purple-400 w-3' : 'bg-white/10'}`;
+                dotContainer.appendChild(d);
+            });
+        }
+
+        function cycleQuote() {
+            const el = document.getElementById('quote-text');
+            el.style.animation = 'quoteFadeOut 0.3s ease forwards';
+
+            setTimeout(() => {
+                let next;
+                do { next = Math.floor(Math.random() * quotes.length); } while (next === currentQuoteIndex && quotes.length > 1);
+                currentQuoteIndex = next;
+                el.textContent = quotes[currentQuoteIndex];
+                el.style.animation = 'quoteFadeIn 0.5s ease both';
+                renderQuoteDots();
+            }, 300);
+        }
+
+        renderQuoteDots();
+        // Auto-cycle every 8 seconds
+        setInterval(cycleQuote, 8000);
+
+        /* -------------------------------------------------------------------------- */
+        /*                            EASTER EGG (/rift)                              */
+        /* -------------------------------------------------------------------------- */
+        let easterEggBuffer = '';
+        let easterEggActive = false;
+        const EASTER_EGG_CODE = '/rift';
+
+        document.addEventListener('keydown', (e) => {
+            if (easterEggActive) return;
+            easterEggBuffer += e.key.toLowerCase();
+            if (easterEggBuffer.length > 20) easterEggBuffer = easterEggBuffer.slice(-20);
+            if (easterEggBuffer.includes(EASTER_EGG_CODE)) {
+                easterEggBuffer = '';
+                triggerEasterEgg();
+            }
+        });
+
+        function triggerEasterEgg() {
+            easterEggActive = true;
+            const overlay = document.getElementById('easter-egg-overlay');
+            const text = document.getElementById('ee-text');
+            const ring1 = document.getElementById('ee-ring-1');
+            const ring2 = document.getElementById('ee-ring-2');
+            const ring3 = document.getElementById('ee-ring-3');
+            const eeCanvas = document.getElementById('ee-particles');
+            const eeCtx = eeCanvas.getContext('2d');
+
+            overlay.classList.add('active');
+            overlay.style.opacity = '1';
+
+            // Size canvas
+            eeCanvas.width = window.innerWidth;
+            eeCanvas.height = window.innerHeight;
+
+            // Animate rings
+            [ring1, ring2, ring3].forEach((ring, i) => {
+                ring.style.opacity = '1';
+                ring.style.animation = `riftPulseRing 1.5s cubic-bezier(0.16, 1, 0.3, 1) ${i * 0.2}s forwards`;
+            });
+
+            // Text animation
+            text.textContent = 'RIFT';
+            text.style.animation = 'riftTextReveal 3s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards';
+
+            // Spawn particles
+            const eeParticles = [];
+            for (let i = 0; i < 80; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 6;
+                eeParticles.push({
+                    x: eeCanvas.width / 2,
+                    y: eeCanvas.height / 2,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    decay: 0.005 + Math.random() * 0.015,
+                    size: 2 + Math.random() * 4,
+                    hue: 260 + Math.random() * 40
+                });
+            }
+
+            let eeAnimId;
+            function animateEE() {
+                eeCtx.clearRect(0, 0, eeCanvas.width, eeCanvas.height);
+                let alive = false;
+                eeParticles.forEach(p => {
+                    if (p.life <= 0) return;
+                    alive = true;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.03;
+                    p.life -= p.decay;
+
+                    eeCtx.beginPath();
+                    eeCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                    eeCtx.fillStyle = `hsla(${p.hue}, 80%, 65%, ${p.life * 0.8})`;
+                    eeCtx.shadowColor = `hsla(${p.hue}, 90%, 60%, ${p.life})`;
+                    eeCtx.shadowBlur = 15;
+                    eeCtx.fill();
+
+                    // Trail
+                    eeCtx.beginPath();
+                    eeCtx.moveTo(p.x, p.y);
+                    eeCtx.lineTo(p.x - p.vx * 3, p.y - p.vy * 3);
+                    eeCtx.strokeStyle = `hsla(${p.hue}, 70%, 50%, ${p.life * 0.3})`;
+                    eeCtx.lineWidth = p.size * p.life * 0.5;
+                    eeCtx.stroke();
+                });
+
+                if (alive) {
+                    eeAnimId = requestAnimationFrame(animateEE);
+                }
+            }
+            animateEE();
+
+            // Screen flash
+            const flash = document.createElement('div');
+            flash.style.cssText = 'position:fixed;inset:0;background:rgba(139,92,246,0.15);z-index:10001;pointer-events:none;';
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 200);
+
+            // Glitch the page briefly
+            document.body.style.animation = 'riftGlitch 0.6s ease';
+            setTimeout(() => { document.body.style.animation = ''; }, 600);
+
+            // Dismiss after 3.5s
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                    text.style.animation = '';
+                    [ring1, ring2, ring3].forEach(r => { r.style.animation = ''; r.style.opacity = '0'; });
+                    cancelAnimationFrame(eeAnimId);
+                    eeCtx.clearRect(0, 0, eeCanvas.width, eeCanvas.height);
+                    easterEggActive = false;
+                }, 500);
+            }, 3500);
+        }
 
         /* -------------------------------------------------------------------------- */
         /*                       SPOTIFY INTERACTIVE EFFECTS                          */
