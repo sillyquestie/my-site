@@ -265,8 +265,38 @@
         <div class="text-purple-400/60 font-mono text-xs tracking-[0.3em]">LOADING</div>
     </div>
 
-    <!-- Click To Enter Overlay (Cloudflare Security Style) -->
-    <div id="click-overlay" class="fixed inset-0 z-[999] flex flex-col items-center justify-center transition-all duration-[1s] hidden overflow-hidden" style="background: #0a0a0a;">
+    document.addEventListener("DOMContentLoaded", () => {
+    const overlay = document.getElementById("click-overlay");
+    const enterBtn = document.getElementById("enterBtn") || document.getElementById("enter-btn");
+
+    function startSite() {
+        // hide overlay
+        overlay.style.display = "none";
+
+        // show main content if needed
+        const main = document.getElementById("main-content");
+        if (main) main.style.opacity = "1";
+
+        // 🎵 MUSIC START (YouTube)
+        if (player) {
+            player.playVideo();
+        }
+
+        // 🎮 LOAD ROBLOX
+        if (typeof loadRoblox === "function") {
+            loadRoblox();
+        }
+
+        // 🎧 LOAD SPOTIFY (LANYARD)
+        if (typeof loadSpotify === "function") {
+            loadSpotify();
+        }
+    }
+
+    // click anywhere on overlay OR button
+    overlay?.addEventListener("click", startSite);
+    enterBtn?.addEventListener("click", startSite);
+});
         
         <!-- Subtle grid pattern background -->
         <div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 40px 40px;"></div>
