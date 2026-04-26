@@ -1908,3 +1908,115 @@
     </script>
 </body>
 </html>
+
+
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script>
+/* =========================
+   YOUTUBE MUSIC (FIXED)
+========================= */
+
+const playlist = [
+  "bGNs45RlvI8",
+  "IEU5I6ll-lg",
+  "TjPhzgxe3L0",
+  "-j4pEJGwRpw"
+];
+
+let player;
+let queue = [];
+
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function onYouTubeIframeAPIReady() {
+  queue = shuffle(playlist);
+
+  player = new YT.Player("yt-player", {
+    height: "0",
+    width: "0",
+    videoId: queue[0],
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      rel: 0,
+      modestbranding: 1
+    },
+    events: {
+      onStateChange: (event) => {
+        if (event.data === YT.PlayerState.ENDED) {
+          nextSong();
+        }
+      }
+    }
+  });
+}
+
+function nextSong() {
+  queue.shift();
+  if (queue.length === 0) queue = shuffle(playlist);
+  player.loadVideoById(queue[0]);
+}
+
+/* =========================
+   ENTER BUTTON START MUSIC
+========================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  const enterBtn = document.getElementById("enterBtn") || document.getElementById("enter-btn");
+  const enterScreen = document.getElementById("enter");
+  const main = document.getElementById("app") || document.getElementById("main");
+
+  if (enterBtn) {
+    enterBtn.onclick = () => {
+      if (enterScreen) enterScreen.style.display = "none";
+      if (main) main.style.opacity = "1";
+
+      if (player) player.playVideo();
+
+      loadRoblox();
+    };
+  }
+});
+
+/* =========================
+   ROBLOX PROFILE FETCH
+========================= */
+
+const robloxUserId = 8444117088; 
+// ⚠️ IMPORTANT: replace this with your actual Roblox USER ID
+
+const profileLink =
+"https://www.roblox.com/share?code=c177840d5c69c646bdcb71552d00fa83&type=Profile&source=ProfileShare&stamp=1777188739882";
+
+async function loadRoblox() {
+  try {
+    if (!robloxUserId) return;
+
+    // Get username
+    const userRes = await fetch(`https://users.roblox.com/v1/users/${robloxUserId}`);
+    const userData = await userRes.json();
+
+    // Avatar image
+    const avatarURL = `https://www.roblox.com/headshot-thumbnail/image?userId=${robloxUserId}&width=420&height=420&format=png`;
+
+    const nameEl = document.getElementById("rbName");
+    const avatarEl = document.getElementById("rbAvatar");
+
+    if (nameEl) nameEl.innerText = userData.name;
+    if (avatarEl) {
+      avatarEl.src = avatarURL;
+      avatarEl.style.cursor = "pointer";
+      avatarEl.onclick = () => {
+        window.open(profileLink, "_blank");
+      };
+    }
+
+  } catch (err) {
+    console.log("Roblox fetch failed", err);
+  }
+}
+</script>
