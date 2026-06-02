@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rift | Dashboard (Updated)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <!-- About Me Section with Hover Counter -->
+    <section class="max-w-lg mx-auto p-8">
+        <h2 class="text-xl font-bold mb-6">About Me</h2>
+        
+        <!-- Roblox Developer (with hover counter) -->
+        <div id="roblox-card" class="group bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 hover:border-red-500/20 transition-all cursor-pointer">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 bg-red-500/10 rounded-xl flex items-center justify-center">
+                    <span class="text-lg">🎮</span>
+                </div>
+                <div class="flex-1">
+                    <div class="text-white/80 text-sm font-semibold">Roblox Developer</div>
+                    <div class="text-white/30 text-xs mt-0.5">
+                        Lua Scripter · <span id="place-visits">0</span> Place Visits
+                    </div>
+                </div>
+                <div class="px-2.5 py-1 bg-red-500/10 border border-red-500/20 rounded-full text-[10px] text-red-400/70">Active</div>
+            </div>
+        </div>
+
+        <!-- Age stat -->
+        <div class="mt-4 bg-[#0F0F0F] border border-white/5 p-4 rounded-xl text-center">
+            <div class="text-2xl font-bold">18</div>
+            <div class="text-xs text-gray-500">Years Old</div>
+        </div>
+    </section>
+
+    <!-- Time Widget - Blitz's LA Time -->
+    <div class="max-w-lg mx-auto p-8 border-t border-white/10">
+        <div class="flex items-center gap-3">
+            <div>
+                <span class="text-[10px] text-purple-400/60 uppercase tracking-[0.2em]">Blitz's current time</span>
+                <h4 id="blitz-time" class="text-white/80 text-sm font-medium font-mono tabular-nums">00:00:00</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Roblox Avatar Section -->
+    <div class="max-w-lg mx-auto p-8">
+        <div class="flex items-center gap-4">
+            <img id="rbAvatar" src="https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=8444117088&size=150x150&format=Png&isCircular=false" 
+                 class="w-16 h-16 rounded-xl border border-white/10" alt="Roblox Avatar" 
+                 onerror="this.src='https://www.roblox.com/headshot-thumbnail/image?userId=8444117088&width=150&height=150&format=png'">
+            <div>
+                <div id="rbName" class="font-semibold">Loading...</div>
+                <div class="text-xs text-white/40">Roblox Profile</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === HOVER COUNT-UP ANIMATION (0 to 7000) ===
+        const robloxCard = document.getElementById('roblox-card');
+        const visitsEl = document.getElementById('place-visits');
+        
+        let animating = false;
+        
+        robloxCard.addEventListener('mouseenter', () => {
+            if (animating) return;
+            animating = true;
+            
+            const start = 0;
+            const end = 7000;
+            const duration = 1800;
+            const startTime = performance.now();
+            
+            function update(now) {
+                const progress = Math.min((now - startTime) / duration, 1);
+                const current = Math.floor(start + (end - start) * progress);
+                visitsEl.textContent = current.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    visitsEl.textContent = end.toLocaleString();
+                    animating = false;
+                }
+            }
+            requestAnimationFrame(update);
+        });
+
+        // === BLITZ'S LA TIME (America/Los_Angeles) ===
+        function updateBlitzTime() {
+            const timeEl = document.getElementById('blitz-time');
+            const options = {
+                timeZone: 'America/Los_Angeles',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            function tick() {
+                const now = new Intl.DateTimeFormat('en-US', options).format(new Date());
+                timeEl.textContent = now;
+            }
+            tick();
+            setInterval(tick, 1000);
+        }
+        updateBlitzTime();
+
+        // === ROBLOX AVATAR + NAME (Fixed) ===
+        async function loadRobloxProfile() {
+            const userId = 8444117088;
+            const nameEl = document.getElementById('rbName');
+            const avatarEl = document.getElementById('rbAvatar');
+            
+            try {
+                // Get username
+                const userRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+                const userData = await userRes.json();
+                if (nameEl) nameEl.textContent = userData.name || 'Blitz';
+                
+                // Reliable avatar (updated endpoint)
+                avatarEl.src = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`;
+            } catch (e) {
+                if (nameEl) nameEl.textContent = 'Blitz';
+            }
+        }
+        loadRobloxProfile();
+    </script>
+</body>
+</html>
